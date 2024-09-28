@@ -27,7 +27,9 @@ typedef struct List {
 extern List *new_list(uint8_t *format, ...);
 extern void free_list(List *list);
 
-extern List *push_list(List *list, uint8_t *format, ...);
+extern List *push_back(List *list, uint8_t *format, ...);
+extern List *push_front(List *list, uint8_t *format, ...);
+
 extern List *pop_list(List *list);
 
 extern void print_list(List *list);
@@ -38,9 +40,12 @@ extern bool elemin_list(List *list, uint8_t *format, ...);
 
 int main(void) {
     List *list = new_list("dddd", 1, 555, 555, 333);
-    List *temp = push_list(list, "r", 1.3);
-    
-    printf("%d\n", elemin_list(list, "r", 1.3));
+
+    list = push_front(list, "d", 999);
+    list = push_front(list, "r", 2.718);
+    list = push_front(list, "s", "Hello");
+
+    List *temp = push_back(list, "r", 5.5);
 
     print_list(list);
     
@@ -65,15 +70,15 @@ extern List *new_list(uint8_t *format, ...) {
         switch(*format) {
             case 'd':
                 value.decimal = va_arg(factor, int64_t);
-                list_ptr = push_list(list_ptr, "d", value.decimal);
+                list_ptr = push_back(list_ptr, "d", value.decimal);
                 break;
             case 'r':
                 value.real = va_arg(factor, double);
-                list_ptr = push_list(list_ptr, "r", value.real);
+                list_ptr = push_back(list_ptr, "r", value.real);
                 break;
             case 's':
                 value.string = va_arg(factor, uint8_t*);
-                list_ptr = push_list(list_ptr, "s", value.string);
+                list_ptr = push_back(list_ptr, "s", value.string);
                 break;
         }
         ++format;
@@ -83,7 +88,7 @@ extern List *new_list(uint8_t *format, ...) {
     return list;
 }
 
-extern List *push_list(List *list, uint8_t *format, ...) {
+extern List *push_back(List *list, uint8_t *format, ...) {
     if (list == NULL) {
         fprintf(stderr, "%s\n", "list is null");
         return NULL;
@@ -130,6 +135,58 @@ extern List *push_list(List *list, uint8_t *format, ...) {
     va_end(factor);
 
     return list;
+}
+
+extern List *push_front(List *list, uint8_t *format, ...) {
+    if (list == NULL) {
+        fprintf(stderr, "%s\n", "list is null");
+        return NULL;
+    }
+
+    List *new_head = (List*)malloc(sizeof(List));
+    if (new_head == NULL) {
+        fprintf(stderr, "%s\n", "memory allocation failed");
+        return NULL;
+    }
+
+    va_list factor;
+    va_start(factor, format);
+
+    while (*format) {
+        switch (*format) {
+            case 'd': {
+                int64_t value = va_arg(factor, int64_t);
+                new_head->type = _DECIMAL_ELEM;
+                new_head->value.decimal = value;
+                new_head->next = list;
+                break;
+            }
+            case 'r': {
+                double value = va_arg(factor, double);
+                new_head->type = _REAL_ELEM;
+                new_head->value.real = value;
+                new_head->next = list;
+                break;
+            }
+            case 's': {
+                uint8_t *value = va_arg(factor, uint8_t*);
+                new_head->type = _STRING_ELEM;
+                new_head->value.string = value;
+                new_head->next = list;
+                break;
+            }
+            default:
+                fprintf(stderr, "%s\n", "unknown format specifier");
+                free(new_head);
+                va_end(factor);
+                return NULL;
+        }
+        ++format;
+    }
+
+    va_end(factor);
+
+    return new_head;
 }
 
 extern List *pop_list(List *list) {
@@ -229,6 +286,7 @@ extern void print_list(List *list) {
 
 extern void free_list(List *list) {
     List *list_ptr;
+    
     while (list != NULL) {
         list_ptr = list->next;
         free(list);
